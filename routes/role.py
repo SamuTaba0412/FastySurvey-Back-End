@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-from sqlalchemy.exc import IntegrityError
 
 # from cryptography.fernet import Fernet
 
@@ -11,16 +10,16 @@ from schemas.role import Role
 # key = Fernet.generate_key()
 # f = Fernet(key)
 
-role = APIRouter()
+role = APIRouter(prefix="/roles", tags=["Roles"])
 
 
-@role.get("/roles")
+@role.get("/")
 def get_roles():
     result = conn.execute(roles.select()).fetchall()
     return [dict(row._mapping) for row in result]
 
 
-@role.get("/roles/{id}")
+@role.get("/{id}")
 def get_role(id: int):
     stmt = roles.select().where(roles.c.id_role == id)
 
@@ -32,7 +31,7 @@ def get_role(id: int):
     return dict(row._mapping)
 
 
-@role.post("/roles")
+@role.post("/")
 def create_role(role: Role):
     stmt = roles.insert().values(role.model_dump(exclude_none=True)).returning(roles)
 
@@ -42,7 +41,7 @@ def create_role(role: Role):
     return dict(row._mapping)
 
 
-@role.put("/roles/{id}")
+@role.put("/{id}")
 def update_role(id: int, role: Role):
     stmt = (
         roles.update()
@@ -60,7 +59,7 @@ def update_role(id: int, role: Role):
     return dict(row._mapping)
 
 
-@role.delete("/roles/{id}")
+@role.delete("/{id}")
 def delete_role(id: int):
     stmt = roles.delete().where(roles.c.id_role == id).returning(roles)
     row = conn.execute(stmt).fetchone()
