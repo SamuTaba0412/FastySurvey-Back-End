@@ -1,0 +1,69 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+
+# Unit test / coverage reports
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDEs / Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy / Pylint / Pyright
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyright/
+
+# Environments
+.env
+.env.*
+
+# SQLite / Databases
+*.db
+*.sqlite3
+
+# Docker / Containers
+*.pid
+*.seed
+
+# FastAPI specific
+# (si usas uvicorn con --reload crea estos temporales)
+*.reload
+
+# Jupyter notebooks (si usas para pruebas)
+.ipynb_checkpoints/
+
+# Coverage
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Profiling
+.prof
+
+conda-activation.txt
