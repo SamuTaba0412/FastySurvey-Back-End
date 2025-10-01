@@ -1,3 +1,12 @@
+# Alembic
+migrations/versions/__pycache__/
+migrations/versions/*.pyc
+
+#conda
+.conda/
+*.conda
+*.lock
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -9,5 +9,3 @@ permissions = Table(
     Column("id_permission", Integer, primary_key=True),
     Column("permission_name", String, nullable=False)
 )
-
-meta.create_all(engine)

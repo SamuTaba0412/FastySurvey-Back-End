@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 from datetime import date
 
@@ -7,3 +7,4 @@ class Role(BaseModel):
     creation_date: date
     role_state: Optional[int] = 1
     update_date: Optional[date] = None
+    permissions: List[int]

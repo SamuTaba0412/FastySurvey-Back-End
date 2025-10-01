@@ -12,5 +12,3 @@ roles = Table(
     Column("role_state", Integer, nullable=False, default=1),
     Column("update_date", Date)
 )
-
-meta.create_all(engine)
