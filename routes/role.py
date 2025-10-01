@@ -1,17 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
-# from cryptography.fernet import Fernet
-
 from config.db import conn
 from models.permission import permissions
 from models.role import roles
 from models.role_permission import roles_permissions
 
 from schemas.role import Role
-
-# key = Fernet.generate_key()
-# f = Fernet(key)
 
 role = APIRouter(prefix="/roles", tags=["Roles"])
 
@@ -93,89 +88,80 @@ def get_role(id: int):
 
 @role.post("/")
 def create_role(role: Role):
-    with conn.begin():
-        new_role = role.model_dump(exclude={"permissions"}, exclude_none=True)
+    new_role = role.model_dump(exclude={"permissions"}, exclude_none=True)
 
-        stmt = (
-            roles.insert()
-            .values(new_role)
-            .returning(
-                roles
-            )
+    stmt = roles.insert().values(new_role).returning(roles)
+
+    result = conn.execute(stmt).fetchone()
+    role_id = result.id_role
+
+    if role.permissions:
+        perm_stmt = roles_permissions.insert().values(
+            [{"id_role": role_id, "id_permission": perm} for perm in role.permissions]
         )
+        conn.execute(perm_stmt)
 
-        result = conn.execute(stmt).fetchone()
-        role_id = result.id_role
+    conn.commit()
 
-        if role.permissions:
-            perm_stmt = roles_permissions.insert().values(
-                [
-                    {"id_role": role_id, "id_permission": perm}
-                    for perm in role.permissions
-                ]
-            )
-            conn.execute(perm_stmt)
-
-        return {
-            "id_role": role_id,
-            "role_name": result.role_name,
-            "creation_date": result.creation_date,
-            "role_state": result.role_state,
-            "update_date": result.update_date,
-            "permissions": role.permissions or [],
-        }
+    return {
+        "id_role": role_id,
+        "role_name": result.role_name,
+        "creation_date": result.creation_date,
+        "role_state": result.role_state,
+        "update_date": result.update_date,
+        "permissions": role.permissions or [],
+    }
 
 
 @role.put("/{id}")
 def update_role(id: int, role: Role):
-    with conn.begin():
-        new_role = role.model_dump(exclude={"permissions"}, exclude_none=True)
+    new_role = role.model_dump(exclude={"permissions"}, exclude_none=True)
 
-        stmt = (
-            roles.update()
-            .where(roles.c.id_role == id)
-            .values(new_role)
-            .returning(
-                roles
-            )
+    stmt = (
+        roles.update()
+        .where(roles.c.id_role == id)
+        .values(new_role)
+        .returning(roles)
+    )
+
+    result = conn.execute(stmt).fetchone()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    if role.permissions is not None:
+        del_perm_stmt = roles_permissions.delete().where(
+            (roles_permissions.c.id_role == id)
+            & (~roles_permissions.c.id_permission.in_(role.permissions))
         )
+        conn.execute(del_perm_stmt)
 
-        result = conn.execute(stmt).fetchone()
-
-        if not result:
-            raise HTTPException(status_code=404, detail="Role not found")
-
-        if role.permissions is not None:
-            del_perm_stmt = roles_permissions.delete().where(
-                (roles_permissions.c.id_role == id)
-                & (~roles_permissions.c.id_permission.in_(role.permissions))
+        existing_perms = conn.execute(
+            select(roles_permissions.c.id_permission).where(
+                roles_permissions.c.id_role == id
             )
-            conn.execute(del_perm_stmt)
+        ).fetchall()
 
-            existing_perms = conn.execute(
-                select(roles_permissions.c.id_permission).where(
-                    roles_permissions.c.id_role == id
-                )
-            ).fetchall()
+        existing_perm_ids = {p.id_permission for p in existing_perms}
 
-            existing_perm_ids = {p.id_permission for p in existing_perms}
+        new_perms = [
+            {"id_role": id, "id_permission": perm}
+            for perm in role.permissions
+            if perm not in existing_perm_ids
+        ]
+        if new_perms:
+            conn.execute(roles_permissions.insert().values(new_perms))
 
-            new_perms = [
-                {"id_role": id, "id_permission": perm}
-                for perm in role.permissions
-                if perm not in existing_perm_ids
-            ]
-            if new_perms:
-                conn.execute(roles_permissions.insert().values(new_perms))
+    conn.commit()
 
-        return {
-            "id_role": result.id_role,
-            "role_name": result.role_name,
-            "creation_date": result.creation_date,
-            "role_state": result.role_state,
-            "update_date": result.update_date,
-            "permissions": role.permissions or [],
-        }
+    return {
+        "id_role": result.id_role,
+        "role_name": result.role_name,
+        "creation_date": result.creation_date,
+        "role_state": result.role_state,
+        "update_date": result.update_date,
+        "permissions": role.permissions or [],
+    }
 
 
 @role.delete("/{id}")
