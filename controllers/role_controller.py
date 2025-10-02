@@ -184,10 +184,10 @@ def update_role(id: int, role: Role):
 
 def delete_role(id: int):
     stmt = roles.delete().where(roles.c.id_role == id).returning(roles)
-    row = conn.execute(stmt).fetchone()
+    result = conn.execute(stmt).fetchone()
     conn.commit()
 
-    if not row:
+    if not result:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    return dict(row._mapping)
+    return result.id_role
