@@ -5,6 +5,7 @@ from controllers.role_controller import (
     get_role_by_id,
     create_role,
     update_role,
+    change_role_state,
     delete_role,
 )
 
@@ -29,6 +30,11 @@ def post_role(role: Role):
 @role.put("/{id}")
 def put_role(id: int, role: Role):
     return update_role(id, role)
+
+
+@role.put("/state/{id}")
+def put_role(id: int):
+    return change_role_state(id)
 
 
 @role.delete("/{id}")

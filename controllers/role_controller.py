@@ -182,6 +182,28 @@ def update_role(id: int, role: Role):
     }
 
 
+def change_role_state(id: int):
+    stmt = select(roles).where(roles.c.id_role == id)
+    result = conn.execute(stmt).fetchone()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    new_state = 0 if result.role_state == 1 else 1
+
+    update_stmt = (
+        roles.update()
+        .where(roles.c.id_role == id)
+        .values(role_state=new_state)
+        .returning(roles)
+    )
+
+    updated = conn.execute(update_stmt).fetchone()
+    conn.commit()
+
+    return updated.role_state
+
+
 def delete_role(id: int):
     stmt = roles.delete().where(roles.c.id_role == id).returning(roles)
     result = conn.execute(stmt).fetchone()
