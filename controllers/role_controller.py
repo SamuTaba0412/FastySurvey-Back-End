@@ -1,18 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import HTTPException
 from sqlalchemy import select
-
 from config.db import conn
-from models.permission import permissions
 from models.role import roles
+from models.permission import permissions
 from models.role_permission import roles_permissions
-
 from schemas.role import Role
 
-role = APIRouter(prefix="/roles", tags=["Roles"])
 
-
-@role.get("/")
-def get_roles():
+def get_all_roles():
     j = roles.join(
         roles_permissions, roles.c.id_role == roles_permissions.c.id_role
     ).join(
@@ -26,12 +21,12 @@ def get_roles():
         roles.c.role_state,
         roles.c.update_date,
         roles_permissions.c.id_permission,
+        permissions.c.permission_name,
     ).select_from(j)
 
     result = conn.execute(stmt).fetchall()
 
     roles_dict = {}
-
     for row in result:
         role_id = row.id_role
         if role_id not in roles_dict:
@@ -43,13 +38,14 @@ def get_roles():
                 "update_date": row.update_date,
                 "permissions": [],
             }
-        roles_dict[role_id]["permissions"].append(row.id_permission)
+        roles_dict[role_id]["permissions"].append(
+            {"id_permission": row.id_permission, "permission_name": row.permission_name}
+        )
 
     return list(roles_dict.values())
 
 
-@role.get("/{id}")
-def get_role(id: int):
+def get_role_by_id(id: int):
     j = roles.join(
         roles_permissions, roles.c.id_role == roles_permissions.c.id_role
     ).join(
@@ -64,6 +60,7 @@ def get_role(id: int):
             roles.c.role_state,
             roles.c.update_date,
             roles_permissions.c.id_permission,
+            permissions.c.permission_name,
         )
         .select_from(j)
         .where(roles.c.id_role == id)
@@ -74,24 +71,23 @@ def get_role(id: int):
     if not result:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    role_data = {
+    return {
         "id_role": result[0].id_role,
         "role_name": result[0].role_name,
         "creation_date": result[0].creation_date,
         "role_state": result[0].role_state,
         "update_date": result[0].update_date,
-        "permissions": [row.id_permission for row in result],
+        "permissions": [
+            {"id_permission": row.id_permission, "permission_name": row.permission_name}
+            for row in result
+        ],
     }
 
-    return role_data
 
-
-@role.post("/")
 def create_role(role: Role):
     new_role = role.model_dump(exclude={"permissions"}, exclude_none=True)
 
     stmt = roles.insert().values(new_role).returning(roles)
-
     result = conn.execute(stmt).fetchone()
     role_id = result.id_role
 
@@ -103,27 +99,34 @@ def create_role(role: Role):
 
     conn.commit()
 
+    perm_query = (
+        select(permissions.c.id_permission, permissions.c.permission_name)
+        .join(
+            roles_permissions,
+            permissions.c.id_permission == roles_permissions.c.id_permission,
+        )
+        .where(roles_permissions.c.id_role == role_id)
+    )
+
+    perm_result = conn.execute(perm_query).fetchall()
+
     return {
         "id_role": role_id,
         "role_name": result.role_name,
         "creation_date": result.creation_date,
         "role_state": result.role_state,
         "update_date": result.update_date,
-        "permissions": role.permissions or [],
+        "permissions": [
+            {"id_permission": p.id_permission, "permission_name": p.permission_name}
+            for p in perm_result
+        ],
     }
 
 
-@role.put("/{id}")
 def update_role(id: int, role: Role):
     new_role = role.model_dump(exclude={"permissions"}, exclude_none=True)
 
-    stmt = (
-        roles.update()
-        .where(roles.c.id_role == id)
-        .values(new_role)
-        .returning(roles)
-    )
-
+    stmt = roles.update().where(roles.c.id_role == id).values(new_role).returning(roles)
     result = conn.execute(stmt).fetchone()
 
     if not result:
@@ -154,23 +157,37 @@ def update_role(id: int, role: Role):
 
     conn.commit()
 
+    perms_stmt = (
+        select(permissions.c.id_permission, permissions.c.permission_name)
+        .select_from(
+            roles_permissions.join(
+                permissions,
+                roles_permissions.c.id_permission == permissions.c.id_permission,
+            )
+        )
+        .where(roles_permissions.c.id_role == id)
+    )
+    perms_result = conn.execute(perms_stmt).fetchall()
+
     return {
         "id_role": result.id_role,
         "role_name": result.role_name,
         "creation_date": result.creation_date,
         "role_state": result.role_state,
         "update_date": result.update_date,
-        "permissions": role.permissions or [],
+        "permissions": [
+            {"id_permission": p.id_permission, "permission_name": p.permission_name}
+            for p in perms_result
+        ],
     }
 
 
-@role.delete("/{id}")
 def delete_role(id: int):
     stmt = roles.delete().where(roles.c.id_role == id).returning(roles)
-    row = conn.execute(stmt).fetchone()
+    result = conn.execute(stmt).fetchone()
     conn.commit()
 
-    if not row:
+    if not result:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    return dict(row._mapping)
+    return result.id_role
