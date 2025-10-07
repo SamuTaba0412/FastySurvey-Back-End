@@ -14,8 +14,9 @@ def get_all_users():
         users.c.last_names,
         users.c.identification_type,
         users.c.identification,
+        users.c.user_state,
         roles.c.id_role,
-        roles.c.role_name
+        roles.c.role_name,
     ).select_from(j)
 
     result = conn.execute(stmt).fetchall()
@@ -32,10 +33,52 @@ def get_all_users():
             "identification": row_dict["identification"],
             "role": {
                 "id_role": row_dict["id_role"],
-                "role_name": row_dict["role_name"]
-            }
+                "role_name": row_dict["role_name"],
+            },
         }
 
         users_list.append(user_data)
 
     return users_list
+
+
+def get_user_by_id(id: int):
+    j = users.join(roles, users.c.id_role == roles.c.id_role)
+
+    stmt = (
+        select(
+            users.c.id_user,
+            users.c.names,
+            users.c.last_names,
+            users.c.identification_type,
+            users.c.identification,
+            users.c.email,
+            users.c.creation_date,
+            users.c.update_date,
+            users.c.user_state,
+            roles.c.id_role,
+            roles.c.role_name,
+        )
+        .select_from(j)
+        .where(users.c.id_user == id)
+    )
+
+    result = conn.execute(stmt).fetchone()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    row = dict(result._mapping)
+
+    return {
+        "id_user": row["id_user"],
+        "names": row["names"],
+        "last_names": row["last_names"],
+        "identification_type": row["identification_type"],
+        "identification": row["identification"],
+        "email": row["email"],
+        "creation_date": row["creation_date"],
+        "update_date": row["update_date"],
+        "user_state": row["user_state"],
+        "role": {"id_role": row["id_role"], "role_name": row["role_name"]},
+    }
