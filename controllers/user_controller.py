@@ -1,8 +1,18 @@
+import bcrypt
+import random
+import string
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from config.db import conn
 from models.user import users
 from models.role import roles
+from schemas.user import User
+
+
+def generate_random_password(length=8):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    return "".join(random.choice(characters) for _ in range(length))
 
 
 def get_all_users():
@@ -81,4 +91,40 @@ def get_user_by_id(id: int):
         "update_date": row["update_date"],
         "user_state": row["user_state"],
         "role": {"id_role": row["id_role"], "role_name": row["role_name"]},
+    }
+
+
+def create_user(user: User):
+    random_password = generate_random_password(8)
+
+    hashed_password = bcrypt.hashpw(
+        random_password.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+
+    new_user = user.model_dump(exclude_none=True)
+    new_user["password"] = hashed_password
+
+    stmt = users.insert().values(new_user).returning(users)
+    result = conn.execute(stmt).fetchone()
+
+    if not result:
+        raise HTTPException(status_code=500, detail="User creation failed")
+
+    role_stmt = select(roles.c.id_role, roles.c.role_name).where(
+        roles.c.id_role == result.id_role
+    )
+    role_result = conn.execute(role_stmt).fetchone()
+
+    conn.commit()
+
+    return {
+        "id_user": result.id_user,
+        "names": result.names,
+        "last_names": result.last_names,
+        "identification_type": result.identification_type,
+        "identification": result.identification,
+        "role": {
+            "id_role": role_result.id_role if role_result else None,
+            "role_name": role_result.role_name if role_result else None,
+        }
     }

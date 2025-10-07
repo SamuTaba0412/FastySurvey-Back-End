@@ -12,8 +12,9 @@ users = Table(
     Column("identification_type", String(5), nullable=False),
     Column("identification", String(15), nullable=False, unique=True),
     Column("email", String(), nullable=False, unique=True),
+    Column("password", String(255), nullable=False),
     Column("creation_date", Date, nullable=False),
-    Column("update_date", Date),
+    Column("update_date", Date, nullable=True),
     Column("user_state", Integer, nullable=False, default=1),
     Column(
         "id_role",

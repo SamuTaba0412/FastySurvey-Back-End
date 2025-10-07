@@ -45,14 +45,6 @@ def get_all_roles():
     return list(roles_dict.values())
 
 
-from fastapi import HTTPException
-from sqlalchemy import select
-from config.db import conn
-from models.role import roles
-from models.role_permission import roles_permissions
-from models.permission import permissions
-
-
 def get_role_by_id(id: int):
     j = roles.join(
         roles_permissions, roles.c.id_role == roles_permissions.c.id_role
@@ -79,7 +71,6 @@ def get_role_by_id(id: int):
     if not result:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    # Convertimos las filas a diccionarios
     rows = [dict(row._mapping) for row in result]
     base = rows[0]
 

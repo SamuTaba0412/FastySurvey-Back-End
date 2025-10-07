@@ -1,4 +1,4 @@
-"""added fs_users table with admin user and encrypted fixed password
+"""added fs_users table with admin user and hashed fixed password
 
 Revision ID: 7aa2af67e2db
 Revises: dfbaa5314224
@@ -8,9 +8,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from datetime import date
-from cryptography.fernet import Fernet
+import bcrypt
 
-# revision identifiers, used by Alembic.
 revision: str = '7aa2af67e2db'
 down_revision: Union[str, Sequence[str], None] = 'dfbaa5314224'
 branch_labels: Union[str, Sequence[str], None] = None
@@ -40,10 +39,7 @@ def upgrade() -> None:
 
     plain_password = "R7#pG9!t"
 
-    key = Fernet.generate_key()
-    fernet = Fernet(key)
-
-    encrypted_password = fernet.encrypt(plain_password.encode()).decode()
+    hashed_password = bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     op.bulk_insert(
         fs_users,
@@ -54,7 +50,7 @@ def upgrade() -> None:
                 "identification_type": "CC",
                 "identification": "1017923676",
                 "email": "samutabares09022005@gmail.com",
-                "password": encrypted_password,
+                "password": hashed_password,
                 "creation_date": date.today(),
                 "update_date": None,
                 "user_state": 1,
