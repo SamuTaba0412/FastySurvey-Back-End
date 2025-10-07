@@ -3,7 +3,7 @@ from sqlalchemy.sql.sqltypes import Integer, String, Date
 
 from config.db import meta
 
-roles = Table(
+users = Table(
     "fs_users",
     meta,
     Column("id_user", Integer, primary_key=True),

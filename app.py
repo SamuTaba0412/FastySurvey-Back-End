@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 
 from routes.role_routes import role  
+from routes.user_routes import user
 
 load_dotenv()
 
@@ -31,3 +32,4 @@ def get_api_key(api_key: str = Security(api_key_header)):
     raise HTTPException(status_code=403, detail="API Key inválida o faltante")
 
 app.include_router(role, dependencies=[Depends(get_api_key)])
+app.include_router(user, dependencies=[Depends(get_api_key)])
