@@ -1,7 +1,14 @@
 from fastapi import APIRouter
 from schemas.user import User
 
-from controllers.user_controller import get_all_users, get_user_by_id, create_user
+from controllers.user_controller import (
+    get_all_users,
+    get_user_by_id,
+    create_user,
+    update_user,
+    change_user_state,
+    delete_user
+)
 
 user = APIRouter(prefix="/users", tags=["Users"])
 
@@ -17,5 +24,19 @@ def get_user(id: int):
 
 
 @user.post("/")
-def post_role(user: User):
+def post_user(user: User):
     return create_user(user)
+
+
+@user.put("/{id}")
+def put_user(id: int, user: User):
+    return update_user(id, user)
+
+
+@user.put("/state/{id}")
+def put_role(id: int):
+    return change_user_state(id)
+
+@user.delete("/{id}")
+def delete_role(id: int):
+    return delete_user(id)

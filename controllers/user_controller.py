@@ -107,8 +107,34 @@ def create_user(user: User):
     stmt = users.insert().values(new_user).returning(users)
     result = conn.execute(stmt).fetchone()
 
+    role_stmt = select(roles.c.id_role, roles.c.role_name).where(
+        roles.c.id_role == result.id_role
+    )
+    role_result = conn.execute(role_stmt).fetchone()
+
+    conn.commit()
+
+    return {
+        "id_user": result.id_user,
+        "names": result.names,
+        "last_names": result.last_names,
+        "identification_type": result.identification_type,
+        "identification": result.identification,
+        "role": {
+            "id_role": role_result.id_role if role_result else None,
+            "role_name": role_result.role_name if role_result else None,
+        },
+    }
+
+
+def update_user(id: int, user: User):
+    new_user = user.model_dump(exclude_none=True)
+
+    stmt = users.update().where(users.c.id_user == id).values(new_user).returning(users)
+    result = conn.execute(stmt).fetchone()
+
     if not result:
-        raise HTTPException(status_code=500, detail="User creation failed")
+        raise HTTPException(status_code=404, detail="User not found")
 
     role_stmt = select(roles.c.id_role, roles.c.role_name).where(
         roles.c.id_role == result.id_role
@@ -126,5 +152,38 @@ def create_user(user: User):
         "role": {
             "id_role": role_result.id_role if role_result else None,
             "role_name": role_result.role_name if role_result else None,
-        }
+        },
     }
+
+
+def change_user_state(id: int):
+    stmt = select(users).where(users.c.id_user == id)
+    result = conn.execute(stmt).fetchone()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_state = 0 if result.user_state == 1 else 1
+
+    update_stmt = (
+        users.update()
+        .where(users.c.id_user == id)
+        .values(user_state=new_state)
+        .returning(users)
+    )
+
+    updated = conn.execute(update_stmt).fetchone()
+    conn.commit()
+
+    return updated.user_state
+
+
+def delete_user(id: int):
+    stmt = users.delete().where(users.c.id_user == id).returning(users)
+    result = conn.execute(stmt).fetchone()
+    conn.commit()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return result.id_user
