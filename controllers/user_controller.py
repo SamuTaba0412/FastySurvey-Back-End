@@ -27,7 +27,7 @@ def get_all_users():
         users.c.user_state,
         roles.c.id_role,
         roles.c.role_name,
-    ).select_from(j)
+    ).select_from(j).order_by(users.c.id_user.asc())
 
     result = conn.execute(stmt).fetchall()
 
@@ -41,6 +41,7 @@ def get_all_users():
             "last_names": row_dict["last_names"],
             "identification_type": row_dict["identification_type"],
             "identification": row_dict["identification"],
+            "user_state": row_dict["user_state"],
             "role": {
                 "id_role": row_dict["id_role"],
                 "role_name": row_dict["role_name"],
@@ -120,6 +121,7 @@ def create_user(user: User):
         "last_names": result.last_names,
         "identification_type": result.identification_type,
         "identification": result.identification,
+        "user_state": result.user_state,
         "role": {
             "id_role": role_result.id_role if role_result else None,
             "role_name": role_result.role_name if role_result else None,
@@ -149,6 +151,7 @@ def update_user(id: int, user: User):
         "last_names": result.last_names,
         "identification_type": result.identification_type,
         "identification": result.identification,
+        "user_state": result.user_state,
         "role": {
             "id_role": role_result.id_role if role_result else None,
             "role_name": role_result.role_name if role_result else None,

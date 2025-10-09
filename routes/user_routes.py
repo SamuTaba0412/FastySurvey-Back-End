@@ -34,9 +34,9 @@ def put_user(id: int, user: User):
 
 
 @user.put("/state/{id}")
-def put_role(id: int):
+def put_state_user(id: int):
     return change_user_state(id)
 
 @user.delete("/{id}")
-def delete_role(id: int):
+def delete_user(id: int):
     return delete_user(id)
