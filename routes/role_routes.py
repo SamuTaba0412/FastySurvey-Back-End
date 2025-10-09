@@ -33,10 +33,10 @@ def put_role(id: int, role: Role):
 
 
 @role.put("/state/{id}")
-def put_role(id: int):
+def put_state_role(id: int):
     return change_role_state(id)
 
 
 @role.delete("/{id}")
-def remove_role(id: int):
+def delete_role(id: int):
     return delete_role(id)

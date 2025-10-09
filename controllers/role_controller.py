@@ -22,7 +22,7 @@ def get_all_roles():
         roles.c.update_date,
         roles_permissions.c.id_permission,
         permissions.c.permission_name,
-    ).select_from(j)
+    ).select_from(j).order_by(roles.c.id_role.asc())
 
     result = conn.execute(stmt).fetchall()
 
