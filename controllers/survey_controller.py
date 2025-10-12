@@ -14,3 +14,9 @@ def get_all_surveys():
 
     result = conn.execute(stmt).fetchall()
     return [dict(row._mapping) for row in result]
+
+
+def get_survey_by_id(id: int):
+    stmt = select(surveys).where(surveys.c.id_survey == id)
+    result = conn.execute(stmt).fetchone()
+    return dict(result._mapping)
