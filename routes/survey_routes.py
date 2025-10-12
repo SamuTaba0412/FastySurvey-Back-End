@@ -5,7 +5,8 @@ from controllers.survey_controller import (
     get_survey_by_id,
     create_survey,
     update_survey,
-    change_survey_state
+    change_survey_state,
+    delete_survey_by_id,
 )
 
 survey = APIRouter(prefix="/surveys", tags=["Surveys"])
@@ -34,3 +35,8 @@ def put_survey(id: int, survey: Survey):
 @survey.put("/state/{id}")
 def put_state_survey(id: int):
     return change_survey_state(id)
+
+
+@survey.delete("/{id}")
+def delete_survey(id: int):
+    return delete_survey_by_id(id)

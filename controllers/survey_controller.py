@@ -78,3 +78,14 @@ def change_survey_state(id: int):
     conn.commit()
 
     return updated.survey_state
+
+
+def delete_survey_by_id(id: int):
+    stmt = surveys.delete().where(surveys.c.id_survey == id).returning(surveys)
+    result = conn.execute(stmt).fetchone()
+    conn.commit()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Survey not found")
+
+    return result.id_survey

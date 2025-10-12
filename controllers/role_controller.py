@@ -215,7 +215,7 @@ def change_role_state(id: int):
     return updated.role_state
 
 
-def delete_role(id: int):
+def delete_role_by_id(id: int):
     stmt = roles.delete().where(roles.c.id_role == id).returning(roles)
     result = conn.execute(stmt).fetchone()
     conn.commit()
