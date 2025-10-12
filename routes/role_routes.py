@@ -6,7 +6,7 @@ from controllers.role_controller import (
     create_role,
     update_role,
     change_role_state,
-    delete_role,
+    delete_role_by_id,
 )
 
 role = APIRouter(prefix="/roles", tags=["Roles"])
@@ -39,4 +39,4 @@ def put_state_role(id: int):
 
 @role.delete("/{id}")
 def delete_role(id: int):
-    return delete_role(id)
+    return delete_role_by_id(id)
