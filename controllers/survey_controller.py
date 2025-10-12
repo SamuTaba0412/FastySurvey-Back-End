@@ -19,7 +19,12 @@ def get_all_surveys():
 
 def get_survey_by_id(id: int):
     stmt = select(surveys).where(surveys.c.id_survey == id)
+
     result = conn.execute(stmt).fetchone()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Survey not found")
+
     return dict(result._mapping)
 
 
@@ -29,4 +34,47 @@ def create_survey(survey: Survey):
     stmt = surveys.insert().values(new_survey).returning(surveys)
     result = conn.execute(stmt).fetchone()
 
+    conn.commit()
+
     return dict(result._mapping)
+
+
+def update_survey(id: int, survey: Survey):
+    new_survey = survey.model_dump(exclude_none=True)
+
+    stmt = (
+        surveys.update()
+        .where(surveys.c.id_survey == id)
+        .values(new_survey)
+        .returning(surveys)
+    )
+
+    result = conn.execute(stmt).fetchone()
+    conn.commit()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Survey not found")
+
+    return dict(result._mapping)
+
+
+def change_survey_state(id: int):
+    stmt = select(surveys).where(surveys.c.id_survey == id)
+    result = conn.execute(stmt).fetchone()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Survey not found")
+
+    new_state = 0 if result.survey_state == 1 else 1
+
+    update_stmt = (
+        surveys.update()
+        .where(surveys.c.id_survey == id)
+        .values(survey_state=new_state)
+        .returning(surveys)
+    )
+
+    updated = conn.execute(update_stmt).fetchone()
+    conn.commit()
+
+    return updated.survey_state
