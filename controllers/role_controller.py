@@ -14,15 +14,19 @@ def get_all_roles():
         permissions, roles_permissions.c.id_permission == permissions.c.id_permission
     )
 
-    stmt = select(
-        roles.c.id_role,
-        roles.c.role_name,
-        roles.c.creation_date,
-        roles.c.role_state,
-        roles.c.update_date,
-        roles_permissions.c.id_permission,
-        permissions.c.permission_name,
-    ).select_from(j).order_by(roles.c.id_role.asc())
+    stmt = (
+        select(
+            roles.c.id_role,
+            roles.c.role_name,
+            roles.c.creation_date,
+            roles.c.role_state,
+            roles.c.update_date,
+            roles_permissions.c.id_permission,
+            permissions.c.permission_name,
+        )
+        .select_from(j)
+        .order_by(roles.c.id_role.asc())
+    )
 
     result = conn.execute(stmt).fetchall()
 
@@ -43,14 +47,6 @@ def get_all_roles():
         )
 
     return list(roles_dict.values())
-
-
-from fastapi import HTTPException
-from sqlalchemy import select
-from config.db import conn
-from models.role import roles
-from models.role_permission import roles_permissions
-from models.permission import permissions
 
 
 def get_role_by_id(id: int):
