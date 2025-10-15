@@ -10,6 +10,7 @@ def get_all_surveys():
         surveys.c.id_survey,
         surveys.c.survey_name,
         surveys.c.creation_date,
+        surveys.c.survey_state,
         surveys.c.configuration_date,
     ).order_by(surveys.c.id_survey.asc())
 
