@@ -41,7 +41,7 @@ def create_survey(survey: Survey):
 
 
 def update_survey(id: int, survey: Survey):
-    new_survey = survey.model_dump(exclude_none=True)
+    new_survey = survey.model_dump()
 
     stmt = (
         surveys.update()
