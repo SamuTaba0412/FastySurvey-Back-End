@@ -2,6 +2,9 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from config.db import conn
 from models.survey import surveys
+from models.section import sections
+from models.question import questions
+from models.options import options
 from schemas.survey import Survey
 
 
@@ -27,6 +30,62 @@ def get_survey_by_id(id: int):
         raise HTTPException(status_code=404, detail="Survey not found")
 
     return dict(result._mapping)
+
+
+def get_structuration(id: int):
+    j = sections.join(
+        questions, sections.c.id_section == questions.c.id_section
+    ).join(
+        options, questions.c.id_question == options.c.id_question
+    )
+
+    stmt = (
+        select(
+            sections.c.id_section,
+            sections.c.section_name,
+            questions.c.id_question,
+            questions.c.question_name,
+            questions.c.id_question_type,
+            options.c.id_option,
+            options.c.option_name,
+        )
+        .select_from(j)
+        .where(sections.c.id_survey == id)
+    )
+
+    result = conn.execute(stmt).fetchall()
+
+    structuration_dict = {}
+    for row in result:
+        section_id = row.id_section
+
+        if section_id not in structuration_dict:
+            structuration_dict[section_id] = {
+                "sectionName": row.section_name,
+                "sectionQuestions": []
+            }
+
+        question_data = {
+            "questionDescription": row.question_description,
+            "questionType": row.question_type
+        }
+
+        if getattr(row, "option_description", None):
+            existing_question = next(
+                (q for q in structuration_dict[section_id]["sectionQuestions"] 
+                if q["questionDescription"] == row.question_description),
+                None
+            )
+
+            if existing_question:
+                existing_question.setdefault("options", []).append(row.option_description)
+            else:
+                question_data["options"] = [row.option_description]
+                structuration_dict[section_id]["sectionQuestions"].append(question_data)
+        else:
+            structuration_dict[section_id]["sectionQuestions"].append(question_data)
+
+    return list(structuration_dict.values())
 
 
 def create_survey(survey: Survey):

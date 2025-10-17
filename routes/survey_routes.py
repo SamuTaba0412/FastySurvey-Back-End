@@ -3,6 +3,7 @@ from schemas.survey import Survey
 from controllers.survey_controller import (
     get_all_surveys,
     get_survey_by_id,
+    get_structuration,
     create_survey,
     update_survey,
     change_survey_state,
@@ -20,6 +21,11 @@ def get_surveys():
 @survey.get("/{id}")
 def get_survey(id: int):
     return get_survey_by_id(id)
+
+
+@survey.get("/structuration/{id}")
+def get_survey_structuration(id: int):
+    return get_structuration(id)
 
 
 @survey.post("/")
