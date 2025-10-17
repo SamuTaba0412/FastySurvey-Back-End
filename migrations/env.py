@@ -3,7 +3,16 @@ from alembic import context
 
 # Importa tu engine y metadata
 from config.db import engine, meta
-from models import role, permission, role_permission, survey
+from models import (
+    role,
+    permission,
+    role_permission,
+    survey,
+    section,
+    question_type,
+    question,
+    options
+)
 
 # Objeto de configuración de Alembic
 config = context.config
