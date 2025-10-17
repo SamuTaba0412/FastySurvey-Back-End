@@ -9,6 +9,14 @@ questions = Table(
     Column("id_question", Integer, primary_key=True),
     Column("question_name", String, nullable=False),
     Column(
+        "id_section",
+        Integer,
+        ForeignKey(
+            "fs_sections.id_section",
+            name="fk_section"
+        )
+    ),
+    Column(
         "id_question_type",
         Integer,
         ForeignKey(
