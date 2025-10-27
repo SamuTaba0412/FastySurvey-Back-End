@@ -1,9 +1,11 @@
 from fastapi import APIRouter
-from schemas.survey import Survey
+from typing import List
+from schemas.survey import Survey, SurveyStructuration
 from controllers.survey_controller import (
     get_all_surveys,
     get_survey_by_id,
     get_structuration,
+    save_structuration_changes,
     create_survey,
     update_survey,
     change_survey_state,
@@ -31,6 +33,11 @@ def get_survey_structuration(id: int):
 @survey.post("/")
 def post_survey(survey: Survey):
     return create_survey(survey)
+
+
+@survey.post("/structuration/{id}")
+def post_survey_structuration(id: int, survey_structuration: List[SurveyStructuration]):
+    return save_structuration_changes(id, survey_structuration)
 
 
 @survey.put("/{id}")

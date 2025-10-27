@@ -1,11 +1,12 @@
 from fastapi import HTTPException
+from typing import List
 from sqlalchemy import select
 from config.db import conn
 from models.survey import surveys
 from models.section import sections
 from models.question import questions
 from models.options import options
-from schemas.survey import Survey
+from schemas.survey import Survey, SurveyStructuration
 
 
 def get_all_surveys():
@@ -33,10 +34,10 @@ def get_survey_by_id(id: int):
 
 
 def get_structuration(id: int):
-    j = sections.join(
-        questions, sections.c.id_section == questions.c.id_section
-    ).join(
-        options, questions.c.id_question == options.c.id_question
+    j = (
+        sections
+        .outerjoin(questions, sections.c.id_section == questions.c.id_section)
+        .outerjoin(options, questions.c.id_question == options.c.id_question)
     )
 
     stmt = (
@@ -55,35 +56,47 @@ def get_structuration(id: int):
 
     result = conn.execute(stmt).fetchall()
 
+    if not result:
+        return []
+
     structuration_dict = {}
+
     for row in result:
         section_id = row.id_section
 
         if section_id not in structuration_dict:
             structuration_dict[section_id] = {
-                "sectionName": row.section_name,
-                "sectionQuestions": []
+                "id_section": section_id,
+                "section_name": row.section_name,
+                "section_questions": [],
             }
 
-        question_data = {
-            "questionDescription": row.question_description,
-            "questionType": row.question_type
-        }
+        if not row.id_question:
+            continue
 
-        if getattr(row, "option_description", None):
-            existing_question = next(
-                (q for q in structuration_dict[section_id]["sectionQuestions"] 
-                if q["questionDescription"] == row.question_description),
-                None
-            )
+        section_questions = structuration_dict[section_id]["section_questions"]
 
-            if existing_question:
-                existing_question.setdefault("options", []).append(row.option_description)
-            else:
-                question_data["options"] = [row.option_description]
-                structuration_dict[section_id]["sectionQuestions"].append(question_data)
+        existing_question = next(
+            (q for q in section_questions if q["id_question"] == row.id_question),
+            None
+        )
+
+        if not existing_question:
+            question_data = {
+                "id_question": row.id_question,
+                "question_name": row.question_name,
+                "id_question_type": row.id_question_type,
+                "options": [],
+            }
+            section_questions.append(question_data)
         else:
-            structuration_dict[section_id]["sectionQuestions"].append(question_data)
+            question_data = existing_question
+
+        if row.id_option and row.option_name:
+            question_data["options"].append({
+                "id_option": row.id_option,
+                "option_name": row.option_name,
+            })
 
     return list(structuration_dict.values())
 
@@ -97,6 +110,47 @@ def create_survey(survey: Survey):
     conn.commit()
 
     return dict(result._mapping)
+
+
+def save_structuration_changes(id: int, survey_structuration: List[SurveyStructuration]):
+    existing_structuration = get_structuration(id)
+
+    if len(existing_structuration) == 0:
+        for section in survey_structuration:
+            new_section = {
+                "section_name": section.section_name,
+                "id_survey": id
+            }
+
+            section_stmt = sections.insert().values(new_section).returning(sections.c.id_section)
+            section_result = conn.execute(section_stmt).fetchone()
+
+            for question in section.section_questions:
+                new_question = {
+                    "question_name": question.question_name,
+                    "id_question_type": question.id_question_type,
+                    "id_section": section_result.id_section
+                }
+
+                question_stmt = questions.insert().values(new_question).returning(questions.c.id_question)
+                question_result = conn.execute(question_stmt).fetchone()
+
+                if question.options:
+                    for option in question.options:
+                        new_option = {
+                            "option_name": option.option_name,
+                            "id_question": question_result.id_question
+                        }
+
+                        option_stmt = options.insert().values(new_option).returning(options.c.id_option)
+                        conn.execute(option_stmt).fetchone()
+
+        conn.commit()
+
+        new_structuration = get_structuration(id)
+        return new_structuration
+
+    return existing_structuration
 
 
 def update_survey(id: int, survey: Survey):
