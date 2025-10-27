@@ -35,8 +35,8 @@ def post_survey(survey: Survey):
     return create_survey(survey)
 
 
-@survey.post("/structuration/{id}")
-def post_survey_structuration(id: int, survey_structuration: List[SurveyStructuration]):
+@survey.put("/structuration/{id}")
+def put_survey_structuration(id: int, survey_structuration: List[SurveyStructuration]):
     return save_structuration_changes(id, survey_structuration)
 
 
