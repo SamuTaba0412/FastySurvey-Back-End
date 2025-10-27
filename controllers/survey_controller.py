@@ -34,11 +34,9 @@ def get_survey_by_id(id: int):
 
 
 def get_structuration(id: int):
-    j = (
-        sections
-        .outerjoin(questions, sections.c.id_section == questions.c.id_section)
-        .outerjoin(options, questions.c.id_question == options.c.id_question)
-    )
+    j = sections.outerjoin(
+        questions, sections.c.id_section == questions.c.id_section
+    ).outerjoin(options, questions.c.id_question == options.c.id_question)
 
     stmt = (
         select(
@@ -52,6 +50,7 @@ def get_structuration(id: int):
         )
         .select_from(j)
         .where(sections.c.id_survey == id)
+        .order_by(sections.c.id_section.asc())
     )
 
     result = conn.execute(stmt).fetchall()
@@ -77,8 +76,7 @@ def get_structuration(id: int):
         section_questions = structuration_dict[section_id]["section_questions"]
 
         existing_question = next(
-            (q for q in section_questions if q["id_question"] == row.id_question),
-            None
+            (q for q in section_questions if q["id_question"] == row.id_question), None
         )
 
         if not existing_question:
@@ -93,10 +91,12 @@ def get_structuration(id: int):
             question_data = existing_question
 
         if row.id_option and row.option_name:
-            question_data["options"].append({
-                "id_option": row.id_option,
-                "option_name": row.option_name,
-            })
+            question_data["options"].append(
+                {
+                    "id_option": row.id_option,
+                    "option_name": row.option_name,
+                }
+            )
 
     return list(structuration_dict.values())
 
@@ -112,45 +112,222 @@ def create_survey(survey: Survey):
     return dict(result._mapping)
 
 
-def save_structuration_changes(id: int, survey_structuration: List[SurveyStructuration]):
+def save_structuration_changes(
+    id: int, survey_structuration: List[SurveyStructuration]
+):
     existing_structuration = get_structuration(id)
 
+    # CASO 1: insertar todo si no existe estructura previa
     if len(existing_structuration) == 0:
         for section in survey_structuration:
-            new_section = {
-                "section_name": section.section_name,
-                "id_survey": id
-            }
-
-            section_stmt = sections.insert().values(new_section).returning(sections.c.id_section)
+            new_section = {"section_name": section.section_name, "id_survey": id}
+            section_stmt = (
+                sections.insert().values(new_section).returning(sections.c.id_section)
+            )
             section_result = conn.execute(section_stmt).fetchone()
+            section_id = section_result.id_section
 
             for question in section.section_questions:
                 new_question = {
                     "question_name": question.question_name,
                     "id_question_type": question.id_question_type,
-                    "id_section": section_result.id_section
+                    "id_section": section_id,
                 }
-
-                question_stmt = questions.insert().values(new_question).returning(questions.c.id_question)
+                question_stmt = (
+                    questions.insert()
+                    .values(new_question)
+                    .returning(questions.c.id_question)
+                )
                 question_result = conn.execute(question_stmt).fetchone()
+                question_id = question_result.id_question
 
-                if question.options:
-                    for option in question.options:
-                        new_option = {
-                            "option_name": option.option_name,
-                            "id_question": question_result.id_question
-                        }
-
-                        option_stmt = options.insert().values(new_option).returning(options.c.id_option)
-                        conn.execute(option_stmt).fetchone()
+                # insertar opciones (si las trae)
+                for opt in getattr(question, "options", []):
+                    new_opt = {"option_name": getattr(opt, "option_name", None)}
+                    # asociar id_question al insert
+                    new_opt["id_question"] = question_id
+                    conn.execute(options.insert().values(new_opt))
 
         conn.commit()
+        return get_structuration(id)
 
-        new_structuration = get_structuration(id)
-        return new_structuration
+    # CASO 2: ya existe estructura → actualizar/eliminar/insertar según corresponda
+    else:
+        # ids existentes en BD
+        existing_section_ids = [
+            (
+                section["id_section"]
+                if isinstance(section, dict)
+                else getattr(section, "id_section", None)
+            )
+            for section in existing_structuration
+        ]
 
-    return existing_structuration
+        # ids que vienen en el payload (solo los que tienen id != 0 / None)
+        new_section_ids = [
+            section.id_section
+            for section in survey_structuration
+            if getattr(section, "id_section", None) not in (None, 0)
+        ]
+
+        # secciones a borrar
+        sections_to_delete = set(existing_section_ids) - set(new_section_ids)
+
+        if sections_to_delete:
+            # eliminar opciones y preguntas relacionadas podría ser necesario si no hay FKs con cascade
+            # eliminar preguntas relacionadas
+            delete_questions_for_sections = questions.delete().where(
+                questions.c.id_section.in_(sections_to_delete)
+            )
+            conn.execute(delete_questions_for_sections)
+            # eliminar secciones
+            delete_sec_stmt = sections.delete().where(
+                sections.c.id_section.in_(sections_to_delete)
+            )
+            conn.execute(delete_sec_stmt)
+            conn.commit()
+
+        # Recorremos todas las secciones recibidas: insertar nuevas o actualizar existentes
+        for section in survey_structuration:
+            # obtener/crear section_id
+            incoming_sec_id = getattr(section, "id_section", 0) or 0
+
+            if (
+                incoming_sec_id in (0, None)
+                or incoming_sec_id not in existing_section_ids
+            ):
+                # insertar nueva sección
+                new_section = {"section_name": section.section_name, "id_survey": id}
+                section_stmt = (
+                    sections.insert()
+                    .values(new_section)
+                    .returning(sections.c.id_section)
+                )
+                section_result = conn.execute(section_stmt).fetchone()
+                section_id = section_result.id_section
+            else:
+                # actualizar sección existente
+                section_id = incoming_sec_id
+                update_sec_stmt = (
+                    sections.update()
+                    .where(sections.c.id_section == section_id)
+                    .values(section_name=section.section_name)
+                )
+                conn.execute(update_sec_stmt)
+
+            # -----------------------------
+            # PREGUNTAS: obtener existentes en BD para esta sección
+            existing_questions_stmt = select(questions).where(
+                questions.c.id_section == section_id
+            )
+            existing_questions = conn.execute(existing_questions_stmt).fetchall()
+            existing_question_ids = [q.id_question for q in existing_questions]
+
+            # ids de preguntas que vienen en payload (no considerar 0/None como existentes)
+            new_question_ids = [
+                q.id_question
+                for q in section.section_questions
+                if getattr(q, "id_question", None) not in (None, 0)
+            ]
+
+            # preguntas a borrar (las que están en BD pero no vienen en payload)
+            questions_to_delete = set(existing_question_ids) - set(new_question_ids)
+            if questions_to_delete:
+                # primero eliminar opciones de esas preguntas (si no hay cascade)
+                delete_opts_for_q = options.delete().where(
+                    options.c.id_question.in_(questions_to_delete)
+                )
+                conn.execute(delete_opts_for_q)
+                # eliminar preguntas
+                delete_q_stmt = questions.delete().where(
+                    questions.c.id_question.in_(questions_to_delete)
+                )
+                conn.execute(delete_q_stmt)
+
+            # Insertar o actualizar preguntas recibidas
+            for question in section.section_questions:
+                incoming_q_id = getattr(question, "id_question", 0) or 0
+
+                if (
+                    incoming_q_id in (0, None)
+                    or incoming_q_id not in existing_question_ids
+                ):
+                    # insertar nueva pregunta
+                    new_question = {
+                        "question_name": question.question_name,
+                        "id_question_type": question.id_question_type,
+                        "id_section": section_id,
+                    }
+                    question_stmt = (
+                        questions.insert()
+                        .values(new_question)
+                        .returning(questions.c.id_question)
+                    )
+                    q_result = conn.execute(question_stmt).fetchone()
+                    question_id = q_result.id_question
+                else:
+                    # actualizar pregunta existente
+                    question_id = incoming_q_id
+                    update_q_stmt = (
+                        questions.update()
+                        .where(questions.c.id_question == question_id)
+                        .values(
+                            question_name=question.question_name,
+                            id_question_type=question.id_question_type,
+                        )
+                    )
+                    conn.execute(update_q_stmt)
+
+                # -----------------------------
+                # OPCIONES: aqui estaba el fallo que señalaste — ahora manejamos opciones para preguntas EXISTENTES
+                # obtener opciones existentes en BD para la pregunta actual
+                existing_opts_stmt = select(options).where(
+                    options.c.id_question == question_id
+                )
+                existing_opts = conn.execute(existing_opts_stmt).fetchall()
+                existing_opt_ids = [o.id_option for o in existing_opts]
+
+                # ids de opciones que vienen en payload (no considerar 0/None como existentes)
+                new_opt_ids = [
+                    opt.id_option
+                    for opt in getattr(question, "options", [])
+                    if getattr(opt, "id_option", None) not in (None, 0)
+                ]
+
+                # opciones a borrar: las que están en BD pero no vienen en el payload
+                opts_to_delete = set(existing_opt_ids) - set(new_opt_ids)
+                if opts_to_delete:
+                    delete_opt_stmt = options.delete().where(
+                        options.c.id_option.in_(opts_to_delete)
+                    )
+                    conn.execute(delete_opt_stmt)
+
+                # ahora insertar o actualizar cada opción que viene en el payload
+                for opt in getattr(question, "options", []):
+                    incoming_opt_id = getattr(opt, "id_option", 0) or 0
+
+                    if (
+                        incoming_opt_id in (0, None)
+                        or incoming_opt_id not in existing_opt_ids
+                    ):
+                        # insertar nueva opción y asociarla a la pregunta actual
+                        new_opt = {
+                            "option_name": getattr(opt, "option_name", None),
+                            "id_question": question_id,
+                        }
+                        conn.execute(options.insert().values(new_opt))
+                    else:
+                        # actualizar opción existente
+                        update_opt_stmt = (
+                            options.update()
+                            .where(options.c.id_option == incoming_opt_id)
+                            .values(option_name=getattr(opt, "option_name", None))
+                        )
+                        conn.execute(update_opt_stmt)
+
+        # confirmar todos los cambios
+        conn.commit()
+        return get_structuration(id)
 
 
 def update_survey(id: int, survey: Survey):

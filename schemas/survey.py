@@ -12,7 +12,7 @@ class Survey(BaseModel):
 
 class Option(BaseModel):
     id_option: Optional[int] = None
-    option_description: str
+    option_name: str
     id_question: Optional[int] = None
 
 class Question(BaseModel):

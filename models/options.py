@@ -13,6 +13,7 @@ options = Table(
         Integer,
         ForeignKey(
             "fs_questions.id_question",
+            ondelete="CASCADE",
             name="fk_question"
         )
     ),

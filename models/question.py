@@ -13,6 +13,7 @@ questions = Table(
         Integer,
         ForeignKey(
             "fs_sections.id_section",
+            ondelete="CASCADE",
             name="fk_section"
         )
     ),
