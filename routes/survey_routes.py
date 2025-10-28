@@ -3,6 +3,7 @@ from typing import List
 from schemas.survey import Survey, SurveyStructuration
 from controllers.survey_controller import (
     get_all_surveys,
+    get_all_question_types,
     get_survey_by_id,
     get_structuration,
     save_structuration_changes,
@@ -18,6 +19,11 @@ survey = APIRouter(prefix="/surveys", tags=["Surveys"])
 @survey.get("/")
 def get_surveys():
     return get_all_surveys()
+
+
+@survey.get("/question/types")
+def get_question_types():
+    return get_all_question_types()
 
 
 @survey.get("/{id}")

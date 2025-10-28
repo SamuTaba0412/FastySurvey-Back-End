@@ -6,6 +6,7 @@ from models.survey import surveys
 from models.section import sections
 from models.question import questions
 from models.options import options
+from models.question_type import question_types
 from schemas.survey import Survey, SurveyStructuration
 
 
@@ -19,6 +20,13 @@ def get_all_surveys():
     ).order_by(surveys.c.id_survey.asc())
 
     result = conn.execute(stmt).fetchall()
+    return [dict(row._mapping) for row in result]
+
+
+def get_all_question_types():
+    stmt = select(question_types).order_by(question_types.c.id_question_type.asc())
+    result = conn.execute(stmt).fetchall()
+
     return [dict(row._mapping) for row in result]
 
 
